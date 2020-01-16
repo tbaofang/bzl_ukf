@@ -1,0 +1,34 @@
+syntax = "proto2";
+
+import "pose_tracker_options.proto";
+import "real_time_correlative_scan_matcher_options.proto";
+
+package kalman_filter.proto;
+
+message KalmanLocalTrajectoryBuilderOptions {
+  // Whether to solve the online scan matching first using the correlative scan
+  // matcher to generate a good starting point for Ceres.
+  optional bool use_online_correlative_scan_matching = 1;
+
+  optional kalman_filter.proto.RealTimeCorrelativeScanMatcherOptions
+      real_time_correlative_scan_matcher_options = 2;
+  optional kalman_filter.proto.PoseTrackerOptions pose_tracker_options = 3;
+
+  optional double scan_matcher_variance = 6;
+  optional double odometer_translational_variance = 4;
+  optional double odometer_rotational_variance = 5;
+
+
+  // Time constant for the orientation moving average based on observed gravity
+  // via linear acceleration.
+  optional double imu_gravity_time_constant = 7;
+  optional double imu_gravity_variance = 8;
+
+  // Maximum number of previous odometry states to keep.
+  optional int32 num_odometry_states = 9;
+
+
+  optional double position_model_variance = 10;
+  optional double orientation_model_variance = 11;
+  optional double velocity_model_variance = 12;
+}
