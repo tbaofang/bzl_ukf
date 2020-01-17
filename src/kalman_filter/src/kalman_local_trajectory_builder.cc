@@ -92,7 +92,7 @@ void KalmanLocalTrajectoryBuilder::AddOdometryData(double time, const transform:
 }
 
 
-  void KalmanLocalTrajectoryBuilder::AddImuData(double time, const Eigen::Vector3d& linear_acceleration, 
+  void KalmanLocalTrajectoryBuilder::AddImuData(const common::Time time, const Eigen::Vector3d& linear_acceleration, 
                                                 const Eigen::Vector3d& angular_velocity)
   {
     if (!pose_tracker_) {

@@ -1,10 +1,14 @@
 #include <iostream>
 #include <deque>
+#include <algorithm>
+#include <chrono>
 
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+
+#include "customized_time.h"
 
 
 // #include "local_trajectory_builder_options.pb.h"
@@ -23,26 +27,49 @@
 // #include "cartographer/common/lua_parameter_dictionary.h"
 // #include "cartographer/mapping_3d/proto/kalman_local_trajectory_builder_options.pb.h"
 
-std::deque< pair<double, geometry_msgs::Odometry> > odo_d;
-std::deque< pair<double, sensor_msgs::Imu> > imu_d;
+std::deque<std::pair<double, nav_msgs::Odometry> > odo_d;
+std::deque<std::pair<double, sensor_msgs::Imu> > imu_d;
 
 kalman_filter::KalmanLocalTrajectoryBuilder kf_builder_;
+
+common::Time fromRos(const ros::Time& time)
+{
+      return common::FromUniversal((time.sec +common::kUtsEpochOffsetFromUnixEpochInSeconds) * 10000000ll +
+      (time.nsec + 50) / 100); 
+}
 
 
 void imuCallback(const sensor_msgs::ImuConstPtr& imu_msg)
 {
-    double time = imu_msg->header.stamp.toSec();
-    // Eigen::Vector3d angular_velocity = Eigen::Vector3d(imu_msg->angular_velocity.x, imu_msg->angular_velocity.y,
-    //                                                       imu_msg->angular_velocity.z);
-    // Eigen::Vector3d linear_acceleration = Eigen::Vector3d(imu_msg->linear_acceleration.x, imu_msg->linear_acceleration.y,
-    //                                                       imu_msg->linear_acceleration.z);                                                          
-    // kf_builder_.AddImuData(time, linear_acceleration, angular_velocity);
+    uint64_t stamp = imu_msg->header.stamp.toNSec() ;
+    std::cout << "[main][stamp:] " << stamp << std::endl;
+    std::cout << "[main][stamp/ 1e9:] " << static_cast<long double>(stamp) / 1e9 << std::endl;
+    std::cout << "[main][imu_msg->header.stamp:] " << imu_msg->header.stamp << std::endl;
+
+
+    common::Time time = fromRos(imu_msg->header.stamp);
+
+    // std::cout << "[][std::chrono::milliseconds(milli):] " << std::chrono::milliseconds(stamp) << std::endl;
+    // uint64_t     toNSec () 
+    // ros::Time time = imu_msg->header.stamp.toSce;
+    // imu_d.push_back(std::make_pair(time, *imu_msg));
+    Eigen::Vector3d angular_velocity = Eigen::Vector3d(imu_msg->angular_velocity.x, imu_msg->angular_velocity.y,
+                                                          imu_msg->angular_velocity.z);
+    Eigen::Vector3d linear_acceleration = Eigen::Vector3d(imu_msg->linear_acceleration.x, imu_msg->linear_acceleration.y,
+                                                          imu_msg->linear_acceleration.z);                                                          
+    kf_builder_.AddImuData(time, linear_acceleration, angular_velocity);
 }
 
 void odometerCallback(const nav_msgs::OdometryConstPtr& odom_msg)
 {
-    double time = odom_msg->header.stamp.toSec();
-    
+    // ros::Time time = odom_msg->header.stamp.toSec;
+
+    // std::cout << "[main][time:] " << time << std::endl;
+    // std::cout << "[main][odom_msg->header.secs():] " << odom_msg->header.stamp << std::endl;
+    // std::cout << "[][odom_msg->nsecs:] " << odom_msg->stamp.nsecs << std::endl;
+
+    // odo_d.push_back(std::make_pair(time, *odom_msg));
+
 
 
 
@@ -69,8 +96,64 @@ void odometerCallback(const nav_msgs::OdometryConstPtr& odom_msg)
     // std::cout << "[odometerCallback][t:] " << t << std::endl;
 }
 
-void processSensorData()
+bool processSensorData()
 {
+    // std::cout << "[][imu_d.size():] " << imu_d.size() << std::endl;
+    // std::cout << "[][odo_d.size():] " << odo_d.size() << std::endl;
+
+    std::vector<double> times(2, DBL_MAX);
+
+    if(!odo_d.empty())
+    {
+        times[0] = odo_d.front().first;
+    }
+    if(!imu_d.empty())
+    {
+        times[1] = imu_d.front().first;
+    }
+
+    int min_id = std::min_element(times.begin(), times.end()) - times.begin();
+
+    // std::cout << "[main][min_id:] " << min_id << std::endl;
+    // std::cout << "[main][odo_d.size():] " << odo_d.size() << std::endl;
+    // std::cout << "[main][imu_d.size():] " << imu_d.size() << std::endl;
+    std::cout << "[main][times[min_id]:] " << min_id << ", " << times[min_id] << std::endl;
+
+    if(times[min_id] == DBL_MAX)
+    {
+        return false;
+    }
+    else if(min_id == 0) //odometry
+    {
+        double time = odo_d.front().first;
+        nav_msgs::Odometry odom_msg = odo_d.front().second;
+        Eigen::Vector3d position = Eigen::Vector3d(odom_msg.pose.pose.position.x, odom_msg.pose.pose.position.y,
+                                               odom_msg.pose.pose.position.z) ;
+                                               
+        Eigen::Quaterniond orientation = Eigen::Quaterniond(odom_msg.pose.pose.orientation.w, odom_msg.pose.pose.orientation.x, 
+                                                        odom_msg.pose.pose.orientation.y, odom_msg.pose.pose.orientation.z);
+
+        transform::Rigid3d pose = transform::Rigid3d(position, orientation);
+
+        kf_builder_.AddOdometryData(time, pose);
+
+        odo_d.pop_front();
+    }
+    else if(min_id == 1) // imu
+    {
+        double time = imu_d.front().first;
+        sensor_msgs::Imu imu_msg = imu_d.front().second;
+        Eigen::Vector3d angular_velocity = Eigen::Vector3d(imu_msg.angular_velocity.x, imu_msg.angular_velocity.y,
+                                                          imu_msg.angular_velocity.z);
+        Eigen::Vector3d linear_acceleration = Eigen::Vector3d(imu_msg.linear_acceleration.x, imu_msg.linear_acceleration.y,
+                                                          imu_msg.linear_acceleration.z);   
+
+        // kf_builder_.AddImuData(time, linear_acceleration, angular_velocity);
+
+        imu_d.pop_front();
+    }
+
+    return true;
 
 }
 
@@ -90,16 +173,18 @@ int main(int argc, char** argv)
 
     ros::spin();
 
-    ros::Rate loop_rate(50);
-    while(ros::ok())
-    {
-        // ros::spinOnce();
-        while(processSensorData())
-        {
+    // ros::Rate loop_rate(50);
+    // while(ros::ok())
+    // {
+    //     ros::spinOnce();
+    //     while(processSensorData())
+    //     {
 
-        }
-        loop_rate.sleep();
-    }
+    //     }
+    //     loop_rate.sleep();
+    // }
+
+
     return 0;
 
 

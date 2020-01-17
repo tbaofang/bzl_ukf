@@ -124,6 +124,17 @@ PoseTracker::PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilde
 
 }
 
+PoseTracker::PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilderOptions& options, common::Time time)
+            : options_(options), 
+              time_i_(time),
+              kalman_filter_(KalmanFilterInit(), AddDelta, ComputeDelta),
+              imu_tracker_(options.imu_gravity_time_constant(), time),
+              odometry_tracker_(options.num_odometry_states())
+{
+  std::cout << "[PoseTracker::PoseTracker][options.num_odometry_states():] " << options_.num_odometry_states() << std::endl;
+
+}
+
 PoseTracker::~PoseTracker(){}
 
 
@@ -187,6 +198,27 @@ void PoseTracker::Predict(const double time)
 
   // std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
 }
+
+
+void PoseTracker::Predict(const common::Time time) 
+{
+  imu_tracker_.Advance(time);
+  // CHECK_LE(time_, time);
+  const double delta_t = common::ToSeconds(time - time_i_);
+  if (delta_t == 0.) {
+    return;
+  }
+  kalman_filter_.Predict(
+      [this, delta_t](const State& state) -> State {
+        return ModelFunction(state, delta_t);
+      },
+      BuildModelNoise(delta_t));
+  time_i_ = time;
+
+  std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
+}
+
+
 
 transform::Rigid3d PoseTracker::RigidFromState(const PoseTracker::State& state) 
 {
@@ -274,18 +306,18 @@ void PoseTracker::AddOdometerPoseObservation(const double time, const transform:
 }
 
 
-void PoseTracker::AddImuLinearAccelerationObservation(const double time, const Eigen::Vector3d& imu_linear_acceleration) 
-{
-  // imu_tracker_.Advance(time);
-  // imu_tracker_.AddImuLinearAccelerationObservation(imu_linear_acceleration);
-  // Predict(time);
-}
-
-void PoseTracker::AddImuAngularVelocityObservation(const double time, const Eigen::Vector3d& imu_angular_velocity) 
+void PoseTracker::AddImuLinearAccelerationObservation(const common::Time time, const Eigen::Vector3d& imu_linear_acceleration) 
 {
   imu_tracker_.Advance(time);
-  // imu_tracker_.AddImuAngularVelocityObservation(imu_angular_velocity);
-  // Predict(time);
+  imu_tracker_.AddImuLinearAccelerationObservation(imu_linear_acceleration);
+  Predict(time);
+}
+
+void PoseTracker::AddImuAngularVelocityObservation(const common::Time time, const Eigen::Vector3d& imu_angular_velocity) 
+{
+  imu_tracker_.Advance(time);
+  imu_tracker_.AddImuAngularVelocityObservation(imu_angular_velocity);
+  Predict(time);
 }
 
 

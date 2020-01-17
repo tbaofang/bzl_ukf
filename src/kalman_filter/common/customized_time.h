@@ -23,6 +23,13 @@ using Duration = UniversalTimeScaleClock::duration;
 using Time = UniversalTimeScaleClock::time_point;
 
 
+double ToSeconds(const Duration duration);
+
+Time FromUniversal(int64 ticks);
+
+int64 ToUniversal(const Time time);
+
+std::ostream& operator<<(std::ostream& os, Time time);
 
 }
 

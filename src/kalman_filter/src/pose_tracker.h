@@ -52,6 +52,7 @@ public:
   };
 
   PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilderOptions& options, double time);
+  PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilderOptions& options, common::Time time);
   virtual ~PoseTracker();
   
   using KalmanFilter = UnscentedKalmanFilter<double, kDimension>;
@@ -62,8 +63,8 @@ public:
   void AddPoseObservation(double time, const transform::Rigid3d& pose, const PoseCovariance& covariance);
   void AddOdometerPoseObservation(double time, const transform::Rigid3d& pose, const PoseCovariance& covariance);
 
-  void AddImuLinearAccelerationObservation(double time, const Eigen::Vector3d& imu_linear_acceleration);
-  void AddImuAngularVelocityObservation(double time, const Eigen::Vector3d& imu_angular_velocity);
+  void AddImuLinearAccelerationObservation(common::Time time, const Eigen::Vector3d& imu_linear_acceleration);
+  void AddImuAngularVelocityObservation(common::Time time, const Eigen::Vector3d& imu_angular_velocity);
 
   Distribution GetBelief(double time);
 
@@ -76,12 +77,14 @@ private:
   const Distribution BuildModelNoise(double delta_t) const;
 
   void Predict(double time);
+  void Predict(common::Time time);
 
   //Computes a pose combining the given 'state' with the 'imu_tracker_' orientation.
   transform::Rigid3d RigidFromState(const PoseTracker::State& state);
 
   const kalman_filter::proto::KalmanLocalTrajectoryBuilderOptions options_;
   double time_;
+  common::Time time_i_;
   KalmanFilter kalman_filter_;
   sensor::ImuTracker imu_tracker_;
   sensor::OdometryTracker odometry_tracker_;

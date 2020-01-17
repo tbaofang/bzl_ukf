@@ -62,6 +62,7 @@ add_executable(kalman_filter_node src/kalman_filter_node.cpp ${PROTO_SRCS} ${PRO
   src/pose_tracker.cc
   sensor/imu_tracker.cc
   sensor/odometry_tracker.cc
+  common/customized_time.cc 
   
 )
 target_link_libraries(kalman_filter_node ${catkin_LIBRARIES} ${PROTOBUF_LIBRARIES} ${Boost_LIBRARIES} ${EIGEN_LIBRARIES} ${GLOG_LIB})

@@ -22,7 +22,7 @@ class KalmanLocalTrajectoryBuilder
   void AddOdometryData(common::Time time, const transform::Rigid3d& pose);
   void AddOdometryData(double time, const transform::Rigid3d& pose);
 
-  void AddImuData(double time, const Eigen::Vector3d& linear_acceleration, const Eigen::Vector3d& angular_velocity);
+  void AddImuData(common::Time time, const Eigen::Vector3d& linear_acceleration, const Eigen::Vector3d& angular_velocity);
 
   private:
 
