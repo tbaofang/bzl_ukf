@@ -20,6 +20,13 @@ class GaussianDistribution
     Eigen::Matrix<T, N, N> covariance_;
 };
 
+template <typename T, int N>
+GaussianDistribution<T, N> operator+(const GaussianDistribution<T, N>& lhs,
+                                     const GaussianDistribution<T, N>& rhs) {
+  return GaussianDistribution<T, N>(lhs.GetMean() + rhs.GetMean(),
+                                    lhs.GetCovariance() + rhs.GetCovariance());
+}
+
 template <typename T, int N, int M>
 GaussianDistribution<T, N> operator*(const Eigen::Matrix<T, N, M>& lhs,
                                      const GaussianDistribution<T, M>& rhs) {

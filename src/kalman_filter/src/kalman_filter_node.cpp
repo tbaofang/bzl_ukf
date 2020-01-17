@@ -1,4 +1,5 @@
-#include<iostream>
+#include <iostream>
+#include <deque>
 
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
@@ -22,44 +23,55 @@
 // #include "cartographer/common/lua_parameter_dictionary.h"
 // #include "cartographer/mapping_3d/proto/kalman_local_trajectory_builder_options.pb.h"
 
+std::deque< pair<double, geometry_msgs::Odometry> > odo_d;
+std::deque< pair<double, sensor_msgs::Imu> > imu_d;
 
 kalman_filter::KalmanLocalTrajectoryBuilder kf_builder_;
 
 
 void imuCallback(const sensor_msgs::ImuConstPtr& imu_msg)
 {
-    double t = imu_msg->header.stamp.toSec();
-    // std::cout << "[imuCallback][t:] " << t << std::endl;
-
-    // common::Time t = imu_msg->header.stamp;
-    // std::cout << "[][imu_msg->header.stamp:] " << imu_msg->header.stamp << imu_msg->header.stamp.toSec()<< std::endl;
-
+    double time = imu_msg->header.stamp.toSec();
+    // Eigen::Vector3d angular_velocity = Eigen::Vector3d(imu_msg->angular_velocity.x, imu_msg->angular_velocity.y,
+    //                                                       imu_msg->angular_velocity.z);
+    // Eigen::Vector3d linear_acceleration = Eigen::Vector3d(imu_msg->linear_acceleration.x, imu_msg->linear_acceleration.y,
+    //                                                       imu_msg->linear_acceleration.z);                                                          
+    // kf_builder_.AddImuData(time, linear_acceleration, angular_velocity);
 }
 
 void odometerCallback(const nav_msgs::OdometryConstPtr& odom_msg)
 {
-    // double t = odom_msg->header.stamp.toSec();
-    double time;
-    transform::Rigid3d pose;
-    // transform::Rigid3d pose =  transform::Rigid3d(Eigen::Vector3d(-0.95, -0.05, 0.05),
-    //                      Eigen::AngleAxisd(0.05, Eigen::Vector3d(1., 0., 0.)));
+    double time = odom_msg->header.stamp.toSec();
+    
 
-    Eigen::Vector3d position = Eigen::Vector3d(odom_msg->pose.pose.position.x, odom_msg->pose.pose.position.y,
-                                               odom_msg->pose.pose.position.z) ;
+
+
+
+    // transform::Rigid3d pose;
+    // // transform::Rigid3d pose =  transform::Rigid3d(Eigen::Vector3d(-0.95, -0.05, 0.05),
+    // //                      Eigen::AngleAxisd(0.05, Eigen::Vector3d(1., 0., 0.)));
+
+    // Eigen::Vector3d position = Eigen::Vector3d(odom_msg->pose.pose.position.x, odom_msg->pose.pose.position.y,
+    //                                            odom_msg->pose.pose.position.z) ;
                                                
-    Eigen::Quaterniond orientation = Eigen::Quaterniond(odom_msg->pose.pose.orientation.w, odom_msg->pose.pose.orientation.x, 
-                                                        odom_msg->pose.pose.orientation.y, odom_msg->pose.pose.orientation.z);
+    // Eigen::Quaterniond orientation = Eigen::Quaterniond(odom_msg->pose.pose.orientation.w, odom_msg->pose.pose.orientation.x, 
+    //                                                     odom_msg->pose.pose.orientation.y, odom_msg->pose.pose.orientation.z);
 
-    pose = transform::Rigid3d(position, orientation);
+    // pose = transform::Rigid3d(position, orientation);
 
-    // std::cout << "[][position.x():] " << position.x() << std::endl;
-    time = odom_msg->header.stamp.toSec();
+    // // std::cout << "[][position.x():] " << position.x() << std::endl;
+    // time = odom_msg->header.stamp.toSec();
 
     
-    kf_builder_.AddOdometryData(time, pose);
+    // kf_builder_.AddOdometryData(time, pose);
 
     // kf_builder_.AddOdometryData();
     // std::cout << "[odometerCallback][t:] " << t << std::endl;
+}
+
+void processSensorData()
+{
+
 }
 
 
@@ -77,6 +89,18 @@ int main(int argc, char** argv)
     imu_sub = nh.subscribe("imu", 100, imuCallback);
 
     ros::spin();
+
+    ros::Rate loop_rate(50);
+    while(ros::ok())
+    {
+        // ros::spinOnce();
+        while(processSensorData())
+        {
+
+        }
+        loop_rate.sleep();
+    }
+    return 0;
 
 
 

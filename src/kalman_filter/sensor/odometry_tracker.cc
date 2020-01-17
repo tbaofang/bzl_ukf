@@ -19,7 +19,17 @@ namespace sensor{
 
 OdometryTracker::OdometryTracker(const int window_size): window_size_(window_size) 
 {
-    //   CHECK_GT(window_size, 0);
+      CHECK_GT(window_size, 0);
+}
+
+void OdometryTracker::AddOdometryState(const OdometryState& odometry_state) 
+{
+  odometry_states_.push_back(odometry_state);
+  std::cout << "[OdometryTracker::AddOdometryState][odometry_states_.size():] " << odometry_states_.size() << std::endl;
+  while (odometry_states_.size() > window_size_) 
+  {
+    odometry_states_.pop_front();
+  }
 }
 
 bool OdometryTracker::empty() const 

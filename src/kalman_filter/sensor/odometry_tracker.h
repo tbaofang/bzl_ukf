@@ -8,9 +8,7 @@
 namespace sensor {
 
 struct OdometryState {
-  OdometryState(double time, 
-                const transform::Rigid3d& odometer_pose,
-                const transform::Rigid3d& state_pose);
+  OdometryState(double time, const transform::Rigid3d& odometer_pose, const transform::Rigid3d& state_pose){};
   OdometryState() {}
 
 //   common::Time time = common::Time::min();
@@ -25,6 +23,8 @@ class OdometryTracker
   using OdometryStates = std::deque<OdometryState>;
 
   explicit OdometryTracker(int window_size);
+
+  void AddOdometryState(const OdometryState& odometry_state);
 
   bool empty() const;
 

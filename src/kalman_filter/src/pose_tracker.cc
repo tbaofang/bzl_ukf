@@ -18,12 +18,15 @@ PoseTracker::State AddDelta(const PoseTracker::State& state, const PoseTracker::
                 Eigen::Vector3d(state[PoseTracker::kMapOrientationX], 
                 state[PoseTracker::kMapOrientationY], 
                 state[PoseTracker::kMapOrientationZ]));
+
   const Eigen::Vector3d rotation_vector(delta[PoseTracker::kMapOrientationX],
                                         delta[PoseTracker::kMapOrientationY],  
                                         delta[PoseTracker::kMapOrientationZ]);
 
-  CHECK_LT(rotation_vector.norm(), M_PI / 2.)
-      << "Sigma point is far from the mean, recovered delta may be incorrect.";
+  std::cout << "[][delta.transpose():] " << delta.transpose() << std::endl;
+  std::cout << "[AddDelta][rotation_vector.norm():] " << rotation_vector.norm() << std::endl;
+
+  // CHECK_LT(rotation_vector.norm(), M_PI / 2.) << "Sigma point is far from the mean, recovered delta may be incorrect.";
 
   const Eigen::Quaterniond rotation = transform::AngleAxisVectorToRotationQuaternion(rotation_vector);
   const Eigen::Vector3d new_orientation = transform::RotationQuaternionToAngleAxisVector(orientation * rotation);
@@ -117,6 +120,7 @@ PoseTracker::PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilde
               imu_tracker_(options.imu_gravity_time_constant(), time),
               odometry_tracker_(options.num_odometry_states())
 {
+  std::cout << "[PoseTracker::PoseTracker][options.num_odometry_states():] " << options_.num_odometry_states() << std::endl;
 
 }
 
@@ -166,23 +170,36 @@ void PoseTracker::Predict(const double time)
   // BuildModelNoise(delta_t);
   // const State& state;
   // ModelFunction(state, delta_t);
-  auto model_function = [this, delta_t](const State& state) -> State { 
-    std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
-    return ModelFunction(state, delta_t);};
+  // auto model_function = [this, delta_t](const State& state) -> State { 
+  //   std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
+  //   return ModelFunction(state, delta_t);};
 
-  const PoseTracker::Distribution model_noise = BuildModelNoise(delta_t);
+  // const PoseTracker::Distribution model_noise = BuildModelNoise(delta_t);
 
-  std::cout << "[UKF::Predict enter]" << std::endl;
-  kalman_filter_.Predict(model_function, model_noise);
-  // kalman_filter_.Predict(
-//       [this, delta_t](const State& state) -> State {
-//         return ModelFunction(state, delta_t);
-//       },
-//       BuildModelNoise(delta_t));
+  // std::cout << "[UKF::Predict enter]" << std::endl;
+  // kalman_filter_.Predict(model_function, model_noise);
+
+  kalman_filter_.Predict([this, delta_t](const State& state) -> State {return ModelFunction(state, delta_t);},
+                         BuildModelNoise(delta_t));
+
   time_ = time;
 
 
   // std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
+}
+
+transform::Rigid3d PoseTracker::RigidFromState(const PoseTracker::State& state) 
+{
+  std::cout << "[PoseTracker::RigidFromState][state.transpose():] " << state.transpose() << std::endl;
+  return transform::Rigid3d(
+      Eigen::Vector3d(state[PoseTracker::kMapPositionX],
+                      state[PoseTracker::kMapPositionY],
+                      state[PoseTracker::kMapPositionZ]),
+      transform::AngleAxisVectorToRotationQuaternion(
+          Eigen::Vector3d(state[PoseTracker::kMapOrientationX],
+                          state[PoseTracker::kMapOrientationY],
+                          state[PoseTracker::kMapOrientationZ])) *
+          imu_tracker_.orientation());
 }
 
 
@@ -192,23 +209,42 @@ void PoseTracker::AddPoseObservation(const double time,
 {
   Predict(time);
 
-//   // Noise covariance is taken directly from the input values.
-//   const GaussianDistribution<double, 6> delta(
-//       Eigen::Matrix<double, 6, 1>::Zero(), covariance);
+  // Noise covariance is taken directly from the input values.
+  const GaussianDistribution<double, 6> delta(Eigen::Matrix<double, 6, 1>::Zero(), covariance);
 
-//   kalman_filter_.Observe<6>(
-//       [this, &pose](const State& state) -> Eigen::Matrix<double, 6, 1> {
-//         const transform::Rigid3d state_pose = RigidFromState(state);
-//         const Eigen::Vector3d delta_orientation =
-//             transform::RotationQuaternionToAngleAxisVector(
-//                 pose.rotation().inverse() * state_pose.rotation());
-//         const Eigen::Vector3d delta_translation =
-//             state_pose.translation() - pose.translation();
-//         Eigen::Matrix<double, 6, 1> return_value;
-//         return_value << delta_translation, delta_orientation;
-//         return return_value;
-//       },
-//       delta);
+  // RigidFromState(pose);
+  // auto function = [this, &pose](const State& state) -> Eigen::Matrix<double, 6, 1> 
+  //     {
+  //       const transform::Rigid3d state_pose = RigidFromState(state);
+
+  //       const Eigen::Vector3d delta_orientation =
+  //           transform::RotationQuaternionToAngleAxisVector(
+  //               pose.rotation().inverse() * state_pose.rotation());
+
+  //       const Eigen::Vector3d delta_translation =
+  //           state_pose.translation() - pose.translation();
+
+  //       Eigen::Matrix<double, 6, 1> return_value;
+  //       return_value << delta_translation, delta_orientation;
+
+  //       return return_value;
+  //     };
+
+  // function;    
+
+  kalman_filter_.Observe<6>(
+      [this, &pose](const State& state) -> Eigen::Matrix<double, 6, 1> {
+        const transform::Rigid3d state_pose = RigidFromState(state);
+        const Eigen::Vector3d delta_orientation =
+            transform::RotationQuaternionToAngleAxisVector(
+                pose.rotation().inverse() * state_pose.rotation());
+        const Eigen::Vector3d delta_translation =
+            state_pose.translation() - pose.translation();
+        Eigen::Matrix<double, 6, 1> return_value;
+        return_value << delta_translation, delta_orientation;
+        return return_value;
+      },
+      delta);
 }
 
 
@@ -217,13 +253,12 @@ PoseTracker::Distribution PoseTracker::GetBelief(const double time) {
   return kalman_filter_.GetBelief();
 }
 
-void PoseTracker::AddOdometerPoseObservation(
-    const double time, const transform::Rigid3d& odometer_pose,
-    const PoseCovariance& covariance) 
+void PoseTracker::AddOdometerPoseObservation(const double time, const transform::Rigid3d& odometer_pose,
+                                             const PoseCovariance& covariance) 
 {
     // std::cout << "[][odometry_tracker_.size():] " << odometry_tracker_.size() << std::endl;
-  if (!odometry_tracker_.empty()) {
-    // std::cout << "[][odometry_tracker_.size():] " << odometry_tracker_.size() << std::endl;
+  if (!odometry_tracker_.empty()) 
+  {
     const auto& previous_odometry_state = odometry_tracker_.newest();
     const transform::Rigid3d delta = previous_odometry_state.odometer_pose.inverse() * odometer_pose;
     const transform::Rigid3d new_pose = previous_odometry_state.state_pose * delta;
@@ -232,24 +267,34 @@ void PoseTracker::AddOdometerPoseObservation(
 
   const Distribution belief = GetBelief(time);
 
-//   odometry_state_tracker_.AddOdometryState(
-//       {time, odometer_pose, RigidFromState(belief.GetMean())});
+  // sensor::OdometryState odometry_state = sensor::OdometryState(time, odometer_pose, RigidFromState(belief.GetMean()));
+  // odometry_tracker_.AddOdometryState( );
+
+    odometry_tracker_.AddOdometryState({time, odometer_pose, RigidFromState(belief.GetMean())});
 }
 
 
-PoseCovariance BuildPoseCovariance(const double translational_variance,
-                                   const double rotational_variance) 
+void PoseTracker::AddImuLinearAccelerationObservation(const double time, const Eigen::Vector3d& imu_linear_acceleration) 
 {
-  const Eigen::Matrix3d translational =
-      Eigen::Matrix3d::Identity() * translational_variance;
-  const Eigen::Matrix3d rotational =
-      Eigen::Matrix3d::Identity() * rotational_variance;
-  // clang-format off
+  // imu_tracker_.Advance(time);
+  // imu_tracker_.AddImuLinearAccelerationObservation(imu_linear_acceleration);
+  // Predict(time);
+}
+
+void PoseTracker::AddImuAngularVelocityObservation(const double time, const Eigen::Vector3d& imu_angular_velocity) 
+{
+  imu_tracker_.Advance(time);
+  // imu_tracker_.AddImuAngularVelocityObservation(imu_angular_velocity);
+  // Predict(time);
+}
+
+
+PoseCovariance BuildPoseCovariance(const double translational_variance, const double rotational_variance) 
+{
+  const Eigen::Matrix3d translational = Eigen::Matrix3d::Identity() * translational_variance;
+  const Eigen::Matrix3d rotational = Eigen::Matrix3d::Identity() * rotational_variance;
   PoseCovariance covariance;
-  covariance <<
-      translational, Eigen::Matrix3d::Zero(),
-      Eigen::Matrix3d::Zero(), rotational;
-  // clang-format on
+  covariance << translational, Eigen::Matrix3d::Zero(), Eigen::Matrix3d::Zero(), rotational;
   return covariance;
 }
 

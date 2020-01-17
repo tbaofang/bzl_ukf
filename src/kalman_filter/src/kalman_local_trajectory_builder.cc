@@ -1,25 +1,8 @@
 #include "kalman_local_trajectory_builder.h"
 
+#include "make_unique.h"
+
 namespace kalman_filter{
-
-KalmanLocalTrajectoryBuilder::KalmanLocalTrajectoryBuilder()
-{
-    CreateKalmanLocalTrajectoryBuilderOptions();
-
-    // std::cout << "[KalmanLocalTrajectoryBuilder::KalmanLocalTrajectoryBuilder][options_.odometer_translational_variance():] " << options_.odometer_translational_variance() << std::endl;
-    // bool use_online_correlative_scan_matching =  false;
-    // double scan_matcher_variance = 2.34e-9;
-    // double odometer_translational_variance = 1e-7;
-    // double odometer_rotational_variance = 1e-7;
-
-//   this->options_.set_use_online_correlative_scan_matching(use_online_correlative_scan_matching);
-//   options_.set_scan_matcher_variance(scan_matcher_variance);
-//   options_.set_odometer_translational_variance(odometer_translational_variance);
-//   options_.set_odometer_rotational_variance(odometer_rotational_variance);
-}
-
-KalmanLocalTrajectoryBuilder::~KalmanLocalTrajectoryBuilder() {}
-
 
 void KalmanLocalTrajectoryBuilder::CreateKalmanLocalTrajectoryBuilderOptions() 
 {
@@ -64,11 +47,24 @@ void KalmanLocalTrajectoryBuilder::CreateKalmanLocalTrajectoryBuilderOptions()
   options_ = options;
 }
 
-
-void KalmanLocalTrajectoryBuilder::AddOdometryData(common::Time time, const transform::Rigid3d& pose)
+KalmanLocalTrajectoryBuilder::KalmanLocalTrajectoryBuilder()
 {
+    CreateKalmanLocalTrajectoryBuilderOptions();
 
+    // std::cout << "[KalmanLocalTrajectoryBuilder::KalmanLocalTrajectoryBuilder][options_.odometer_translational_variance():] " << options_.odometer_translational_variance() << std::endl;
+    // bool use_online_correlative_scan_matching =  false;
+    // double scan_matcher_variance = 2.34e-9;
+    // double odometer_translational_variance = 1e-7;
+    // double odometer_rotational_variance = 1e-7;
+
+//   this->options_.set_use_online_correlative_scan_matching(use_online_correlative_scan_matching);
+//   options_.set_scan_matcher_variance(scan_matcher_variance);
+//   options_.set_odometer_translational_variance(odometer_translational_variance);
+//   options_.set_odometer_rotational_variance(odometer_rotational_variance);
 }
+
+KalmanLocalTrajectoryBuilder::~KalmanLocalTrajectoryBuilder() {}
+
 
 void KalmanLocalTrajectoryBuilder::AddOdometryData(double time, const transform::Rigid3d& pose)
 {
@@ -91,12 +87,28 @@ void KalmanLocalTrajectoryBuilder::AddOdometryData(double time, const transform:
     // kalman_filter::BuildPoseCovariance(options_.odometer_translational_variance(),
     //                                      options_.odometer_rotational_variance());
     pose_tracker_->AddOdometerPoseObservation(time, pose,
-      kalman_filter::BuildPoseCovariance(options_.odometer_translational_variance(),
-                                         options_.odometer_rotational_variance()));
-
-
+      kalman_filter::BuildPoseCovariance(options_.odometer_translational_variance(), options_.odometer_rotational_variance()));
 
 }
+
+
+  void KalmanLocalTrajectoryBuilder::AddImuData(double time, const Eigen::Vector3d& linear_acceleration, 
+                                                const Eigen::Vector3d& angular_velocity)
+  {
+    if (!pose_tracker_) {
+    pose_tracker_ = common::make_unique<kalman_filter::PoseTracker>(options_, time);
+  }
+
+  pose_tracker_->AddImuLinearAccelerationObservation(time, linear_acceleration);
+  pose_tracker_->AddImuAngularVelocityObservation(time, angular_velocity);
+
+  // transform::Rigid3d pose_estimate;
+  // kalman_filter::PoseCovariance unused_covariance_estimate;
+  // pose_tracker_->GetPoseEstimateMeanAndCovariance(time, &pose_estimate, &unused_covariance_estimate);
+
+
+  }                                                
+
 
 
 }

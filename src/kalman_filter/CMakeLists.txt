@@ -57,7 +57,7 @@ protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS
 
 add_executable(kalman_filter_node src/kalman_filter_node.cpp ${PROTO_SRCS} ${PROTO_HDRS} 
 
-  src/kalman_local_trajectory_builder_options.cc
+ # src/kalman_local_trajectory_builder_options.cc
   src/kalman_local_trajectory_builder.cc
   src/pose_tracker.cc
   sensor/imu_tracker.cc

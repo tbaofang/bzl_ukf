@@ -49,5 +49,33 @@ void ImuTracker::Advance(const double time)
 
 
 
+void ImuTracker::AddImuLinearAccelerationObservation(const Eigen::Vector3d& imu_linear_acceleration) 
+{
+    std::cout << "[ImuTracker::AddImuLinearAccelerationObservation][std::numeric_limits<double>::infinity():] " << std::numeric_limits<double>::infinity() << std::endl;
+  // Update the 'gravity_vector_' with an exponential moving average using the
+  // 'imu_gravity_time_constant'.
+//   const double delta_t =
+//       last_linear_acceleration_time_ > -1.0 ? 
+//       time_ - last_linear_acceleration_time_: std::numeric_limits<double>::infinity();
+//   last_linear_acceleration_time_ = time_;
+//   const double alpha = 1. - std::exp(-delta_t / imu_gravity_time_constant_);
+//   gravity_vector_ =
+//       (1. - alpha) * gravity_vector_ + alpha * imu_linear_acceleration;
+//   // Change the 'orientation_' so that it agrees with the current
+//   // 'gravity_vector_'.
+//   const Eigen::Quaterniond rotation = Eigen::Quaterniond::FromTwoVectors(
+//       gravity_vector_, orientation_.inverse() * Eigen::Vector3d::UnitZ());
+//   orientation_ = (orientation_ * rotation).normalized();
+//   CHECK_GT((orientation_ * gravity_vector_).z(), 0.);
+//   CHECK_GT((orientation_ * gravity_vector_).normalized().z(), 0.99);
+}
+
+void ImuTracker::AddImuAngularVelocityObservation(const Eigen::Vector3d& imu_angular_velocity) 
+{  
+   imu_angular_velocity_ = imu_angular_velocity;
+}
+
+
+
 
 } //namespace sensor

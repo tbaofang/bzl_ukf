@@ -13,6 +13,14 @@ class ImuTracker {
   void Advance(double time);
 
 
+
+  Eigen::Quaterniond orientation() const { return orientation_; }
+
+
+  void AddImuLinearAccelerationObservation(const Eigen::Vector3d& imu_linear_acceleration);
+  void AddImuAngularVelocityObservation(const Eigen::Vector3d& imu_angular_velocity);
+
+
  private:
   const double imu_gravity_time_constant_;
   double time_;
