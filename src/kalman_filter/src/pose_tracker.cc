@@ -10,7 +10,7 @@ namespace {
 
 PoseTracker::State AddDelta(const PoseTracker::State& state, const PoseTracker::State& delta)
 {
-  std::cout << "[AddDelta][state:] " << state << std::endl;
+  std::cout << "[AddDelta][state:] " << state.transpose() << std::endl;
   PoseTracker::State new_state = state + delta;
   transform::Rigid3d pose;
 
@@ -113,16 +113,16 @@ PoseTracker::Distribution PoseTracker::KalmanFilterInit()
   return Distribution(initial_state, initial_covariance);
 }
 
-PoseTracker::PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilderOptions& options, double time)
-            : options_(options), 
-              time_(time),
-              kalman_filter_(KalmanFilterInit(), AddDelta, ComputeDelta),
-              imu_tracker_(options.imu_gravity_time_constant(), time),
-              odometry_tracker_(options.num_odometry_states())
-{
-  std::cout << "[PoseTracker::PoseTracker][options.num_odometry_states():] " << options_.num_odometry_states() << std::endl;
+// PoseTracker::PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilderOptions& options, double time)
+//             : options_(options), 
+//               time_(time),
+//               kalman_filter_(KalmanFilterInit(), AddDelta, ComputeDelta),
+//               imu_tracker_(options.imu_gravity_time_constant(), time),
+//               odometry_tracker_(options.num_odometry_states())
+// {
+//   std::cout << "[PoseTracker::PoseTracker][options.num_odometry_states():] " << options_.num_odometry_states() << std::endl;
 
-}
+// }
 
 PoseTracker::PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilderOptions& options, common::Time time)
             : options_(options), 
@@ -131,11 +131,31 @@ PoseTracker::PoseTracker(const kalman_filter::proto::KalmanLocalTrajectoryBuilde
               imu_tracker_(options.imu_gravity_time_constant(), time),
               odometry_tracker_(options.num_odometry_states())
 {
-  std::cout << "[PoseTracker::PoseTracker][options.num_odometry_states():] " << options_.num_odometry_states() << std::endl;
+  // std::cout << "[PoseTracker::PoseTracker][options.num_odometry_states():] " << options_.num_odometry_states() << std::endl;
 
 }
 
 PoseTracker::~PoseTracker(){}
+
+
+void PoseTracker::GetPoseEstimateMeanAndCovariance(const common::Time time,
+                                                   transform::Rigid3d* pose,
+                                                   PoseCovariance* covariance) 
+{
+  std::cout << "[check_failed 20][time:] " << time << std::endl;
+  const Distribution belief = GetBelief(time);
+  *pose = RigidFromState(belief.GetMean());
+
+  static_assert(kMapPositionX == 0, "Cannot extract PoseCovariance.");
+  static_assert(kMapPositionY == 1, "Cannot extract PoseCovariance.");
+  static_assert(kMapPositionZ == 2, "Cannot extract PoseCovariance.");
+  static_assert(kMapOrientationX == 3, "Cannot extract PoseCovariance.");
+  static_assert(kMapOrientationY == 4, "Cannot extract PoseCovariance.");
+  static_assert(kMapOrientationZ == 5, "Cannot extract PoseCovariance.");
+
+  *covariance = belief.GetCovariance().block<6, 6>(0, 0);
+  covariance->block<2, 2>(3, 3) += options_.imu_gravity_variance() * Eigen::Matrix2d::Identity();
+}
 
 
 const PoseTracker::Distribution PoseTracker::BuildModelNoise(const double delta_t) const 
@@ -167,52 +187,53 @@ const PoseTracker::Distribution PoseTracker::BuildModelNoise(const double delta_
 }
 
 
-void PoseTracker::Predict(const double time) 
-{
-  std::cout << "[PoseTracker::Predict]" << std::endl;
+// void PoseTracker::Predict(const double time) 
+// {
+  // std::cout << "[PoseTracker::Predict]" << std::endl;
 
-  imu_tracker_.Advance(time);
-  CHECK_LE(time_, time);
-  const double delta_t = time - time_;
-  if (delta_t == 0.) {
-    return;
-  }
+  // imu_tracker_.Advance(time);
+  // CHECK_LE(time_, time);
+  // const double delta_t = time - time_;
+  // if (delta_t == 0.) {
+  //   return;
+  // }
 
-  // BuildModelNoise(delta_t);
-  // const State& state;
-  // ModelFunction(state, delta_t);
-  // auto model_function = [this, delta_t](const State& state) -> State { 
-  //   std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
-  //   return ModelFunction(state, delta_t);};
+  // // BuildModelNoise(delta_t);
+  // // const State& state;
+  // // ModelFunction(state, delta_t);
+  // // auto model_function = [this, delta_t](const State& state) -> State { 
+  // //   std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
+  // //   return ModelFunction(state, delta_t);};
 
-  // const PoseTracker::Distribution model_noise = BuildModelNoise(delta_t);
+  // // const PoseTracker::Distribution model_noise = BuildModelNoise(delta_t);
 
-  // std::cout << "[UKF::Predict enter]" << std::endl;
-  // kalman_filter_.Predict(model_function, model_noise);
+  // // std::cout << "[UKF::Predict enter]" << std::endl;
+  // // kalman_filter_.Predict(model_function, model_noise);
 
-  kalman_filter_.Predict([this, delta_t](const State& state) -> State {return ModelFunction(state, delta_t);},
-                         BuildModelNoise(delta_t));
+  // kalman_filter_.Predict([this, delta_t](const State& state) -> State {return ModelFunction(state, delta_t);},
+  //                        BuildModelNoise(delta_t));
 
-  time_ = time;
+  // time_ = time;
 
 
-  // std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
-}
+  // // std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
+// }
 
 
 void PoseTracker::Predict(const common::Time time) 
 {
+  std::cout << "[check_failed Predict][time:] " << time << std::endl;
   imu_tracker_.Advance(time);
   // CHECK_LE(time_, time);
   const double delta_t = common::ToSeconds(time - time_i_);
   if (delta_t == 0.) {
     return;
   }
-  kalman_filter_.Predict(
-      [this, delta_t](const State& state) -> State {
-        return ModelFunction(state, delta_t);
-      },
-      BuildModelNoise(delta_t));
+  kalman_filter_.Predict([this, delta_t](const State& state) -> State { 
+    std::cout << "[PoseTracker::Predict lambda][delta_t:] " << delta_t << std::endl;
+    return ModelFunction(state, delta_t); },
+                         BuildModelNoise(delta_t));
+
   time_i_ = time;
 
   std::cout << "[PoseTracker::Predict][delta_t:] " << delta_t << std::endl;
@@ -235,10 +256,11 @@ transform::Rigid3d PoseTracker::RigidFromState(const PoseTracker::State& state)
 }
 
 
-void PoseTracker::AddPoseObservation(const double time,
+void PoseTracker::AddPoseObservation(const common::Time time,
                                      const transform::Rigid3d& pose,
                                      const PoseCovariance& covariance)
 {
+  std::cout << "[check_failed 01][time:] " << time << std::endl;
   Predict(time);
 
   // Noise covariance is taken directly from the input values.
@@ -280,14 +302,21 @@ void PoseTracker::AddPoseObservation(const double time,
 }
 
 
-PoseTracker::Distribution PoseTracker::GetBelief(const double time) {
+// PoseTracker::Distribution PoseTracker::GetBelief(const double time) {
+//   Predict(time);
+//   return kalman_filter_.GetBelief();
+// }
+
+PoseTracker::Distribution PoseTracker::GetBelief(const common::Time time) {
+  std::cout << "[check_failed 05][time:] " << time << std::endl;
   Predict(time);
   return kalman_filter_.GetBelief();
 }
 
-void PoseTracker::AddOdometerPoseObservation(const double time, const transform::Rigid3d& odometer_pose,
+void PoseTracker::AddOdometerPoseObservation(const common::Time time, const transform::Rigid3d& odometer_pose,
                                              const PoseCovariance& covariance) 
 {
+  std::cout << "[check_failed 10][time:] " << time << std::endl;
     // std::cout << "[][odometry_tracker_.size():] " << odometry_tracker_.size() << std::endl;
   if (!odometry_tracker_.empty()) 
   {
@@ -308,15 +337,19 @@ void PoseTracker::AddOdometerPoseObservation(const double time, const transform:
 
 void PoseTracker::AddImuLinearAccelerationObservation(const common::Time time, const Eigen::Vector3d& imu_linear_acceleration) 
 {
+  std::cout << "[check_failed AddImuAngularVelocityObservation][time:] " << time << std::endl;
   imu_tracker_.Advance(time);
   imu_tracker_.AddImuLinearAccelerationObservation(imu_linear_acceleration);
+  std::cout << "[check_failed 02][time:] " << time << std::endl;
   Predict(time);
 }
 
 void PoseTracker::AddImuAngularVelocityObservation(const common::Time time, const Eigen::Vector3d& imu_angular_velocity) 
 {
+  std::cout << "[check_failed AddImuAngularVelocityObservation][time:] " << time << std::endl;
   imu_tracker_.Advance(time);
   imu_tracker_.AddImuAngularVelocityObservation(imu_angular_velocity);
+  std::cout << "[check_failed 03][time:] " << time << std::endl;
   Predict(time);
 }
 

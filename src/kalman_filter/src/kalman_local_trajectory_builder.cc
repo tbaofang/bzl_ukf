@@ -66,7 +66,7 @@ KalmanLocalTrajectoryBuilder::KalmanLocalTrajectoryBuilder()
 KalmanLocalTrajectoryBuilder::~KalmanLocalTrajectoryBuilder() {}
 
 
-void KalmanLocalTrajectoryBuilder::AddOdometryData(double time, const transform::Rigid3d& pose)
+void KalmanLocalTrajectoryBuilder::AddOdometryData(common::Time time, const transform::Rigid3d& pose)
 {
     std::cout << "[AddOdometryData][time:] " << time << std::endl;
     // std::cout << "[AddOdometryData][pose.translation().x():] " << pose.translation().x() << std::endl;
@@ -95,19 +95,32 @@ void KalmanLocalTrajectoryBuilder::AddOdometryData(double time, const transform:
   void KalmanLocalTrajectoryBuilder::AddImuData(const common::Time time, const Eigen::Vector3d& linear_acceleration, 
                                                 const Eigen::Vector3d& angular_velocity)
   {
-    if (!pose_tracker_) {
+    std::cout << "[check_failed 50][time:] " << time << std::endl;
+    if (!pose_tracker_) 
+    {
     pose_tracker_ = common::make_unique<kalman_filter::PoseTracker>(options_, time);
+    }
+
+    pose_tracker_->AddImuLinearAccelerationObservation(time, linear_acceleration);
+    pose_tracker_->AddImuAngularVelocityObservation(time, angular_velocity);
+  
+    transform::Rigid3d pose_estimate;
+    kalman_filter::PoseCovariance unused_covariance_estimate;
+    pose_tracker_->GetPoseEstimateMeanAndCovariance(time, &pose_estimate, &unused_covariance_estimate);
+
+
+  }      
+
+  transform::Rigid3d KalmanLocalTrajectoryBuilder::GetPose(const common::Time time)                                          
+  {
+    std::cout << "[check_failed 51][time:] " << time << std::endl;
+    transform::Rigid3d pose_estimate;
+    kalman_filter::PoseCovariance unused_covariance_estimate;
+    pose_tracker_->GetPoseEstimateMeanAndCovariance(time, &pose_estimate, &unused_covariance_estimate);
+
+    return pose_estimate;
+
   }
-
-  pose_tracker_->AddImuLinearAccelerationObservation(time, linear_acceleration);
-  pose_tracker_->AddImuAngularVelocityObservation(time, angular_velocity);
-
-  // transform::Rigid3d pose_estimate;
-  // kalman_filter::PoseCovariance unused_covariance_estimate;
-  // pose_tracker_->GetPoseEstimateMeanAndCovariance(time, &pose_estimate, &unused_covariance_estimate);
-
-
-  }                                                
 
 
 

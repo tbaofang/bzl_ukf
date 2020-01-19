@@ -24,6 +24,8 @@ class KalmanLocalTrajectoryBuilder
 
   void AddImuData(common::Time time, const Eigen::Vector3d& linear_acceleration, const Eigen::Vector3d& angular_velocity);
 
+  transform::Rigid3d GetPose(const common::Time time);
+
   private:
 
 

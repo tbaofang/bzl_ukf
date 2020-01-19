@@ -4,15 +4,16 @@
 #include <deque>
 
 #include "rigid_transform.h"
+#include "customized_time.h"
 
 namespace sensor {
 
 struct OdometryState {
-  OdometryState(double time, const transform::Rigid3d& odometer_pose, const transform::Rigid3d& state_pose){};
+  OdometryState(common::Time time, const transform::Rigid3d& odometer_pose, const transform::Rigid3d& state_pose){};
   OdometryState() {}
 
-//   common::Time time = common::Time::min();
-  double time = 0.0;
+  common::Time time = common::Time::min();
+  // double time = 0.0;
   transform::Rigid3d odometer_pose = transform::Rigid3d::Identity();
   transform::Rigid3d state_pose = transform::Rigid3d::Identity();
 };

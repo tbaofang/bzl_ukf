@@ -42,40 +42,47 @@ ImuTracker::ImuTracker(const double imu_gravity_time_constant, const common::Tim
 
 }
 
-void ImuTracker::Advance(const double time) 
-{
-    std::cout << "[ImuTracker::Advance]" << std::endl;
-//  std::cout << "[][orientation_.vec():] " << orientation_.vec() << std::endl;
-//  std::cout << "[][orientation_.w():] " << orientation_.w() << std::endl;
+// void ImuTracker::Advance(const double time) 
+// {
+//     std::cout << "[ImuTracker::Advance]" << std::endl;
+// //  std::cout << "[][orientation_.vec():] " << orientation_.vec() << std::endl;
+// //  std::cout << "[][orientation_.w():] " << orientation_.w() << std::endl;
 
 
-  CHECK_LE(time_, time);
-  const double delta_t = time - time_;
+//   CHECK_LE(time_, time);
+//   const double delta_t = time - time_;
 
-  const Eigen::Quaterniond rotation =
-      transform::AngleAxisVectorToRotationQuaternion(Eigen::Vector3d(imu_angular_velocity_ * delta_t));
+//   const Eigen::Quaterniond rotation =
+//       transform::AngleAxisVectorToRotationQuaternion(Eigen::Vector3d(imu_angular_velocity_ * delta_t));
 
-  orientation_ = (orientation_ * rotation).normalized();
-  gravity_vector_ = rotation.inverse() * gravity_vector_;
-  time_ = time;
+//   orientation_ = (orientation_ * rotation).normalized();
+//   gravity_vector_ = rotation.inverse() * gravity_vector_;
+//   time_ = time;
 
-  std::cout << "[ImuTracker::Advance][delta_t:] " << delta_t << std::endl;
-  std::cout << "[ImuTracker::Advance][imu_angular_velocity_:] " << imu_angular_velocity_ << std::endl;
-  std::cout << "[ImuTracker::Advance][orientation_.vec():] " << orientation_.vec() << std::endl;
-  std::cout << "[ImuTracker::Advance][orientation_.w():] " << orientation_.w() << std::endl;
-}
+//   std::cout << "[ImuTracker::Advance][delta_t:] " << delta_t << std::endl;
+//   std::cout << "[ImuTracker::Advance][imu_angular_velocity_:] " << imu_angular_velocity_ << std::endl;
+//   std::cout << "[ImuTracker::Advance][orientation_.vec():] " << orientation_.vec() << std::endl;
+//   std::cout << "[ImuTracker::Advance][orientation_.w():] " << orientation_.w() << std::endl;
+// }
 
 void ImuTracker::Advance(const common::Time time) 
 {
+    std::cout << "[Check_failed ImuTracker::Advance][time_i_:] " << time_i_ << std::endl;
+    std::cout << "[Check_failed ImuTracker::Advance][time:] " << time << std::endl;
+    // std::cout << "[test_00 ImuTracker::Advance][common::ToSeconds(time - time_i_):] " << common::ToSeconds(time - time_i_) << std::endl;
+    // if(time < time_i_)
+    //     return;
   CHECK_LE(time_i_, time);
   const double delta_t = common::ToSeconds(time - time_i_);
+
   const Eigen::Quaterniond rotation =
       transform::AngleAxisVectorToRotationQuaternion(
           Eigen::Vector3d(imu_angular_velocity_ * delta_t));
+
   orientation_ = (orientation_ * rotation).normalized();
+
   gravity_vector_ = rotation.inverse() * gravity_vector_;
   time_i_ = time;
-
 
   std::cout << "[ImuTracker::Advance][delta_t:] " << delta_t << std::endl;
 }

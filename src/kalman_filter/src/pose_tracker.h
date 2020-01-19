@@ -60,13 +60,15 @@ public:
   using StateCovariance = Eigen::Matrix<double, kDimension, kDimension>;
   using Distribution = GaussianDistribution<double, kDimension>;
 
-  void AddPoseObservation(double time, const transform::Rigid3d& pose, const PoseCovariance& covariance);
-  void AddOdometerPoseObservation(double time, const transform::Rigid3d& pose, const PoseCovariance& covariance);
+  void AddPoseObservation(common::Time time, const transform::Rigid3d& pose, const PoseCovariance& covariance);
+  void AddOdometerPoseObservation(common::Time time, const transform::Rigid3d& pose, const PoseCovariance& covariance);
 
   void AddImuLinearAccelerationObservation(common::Time time, const Eigen::Vector3d& imu_linear_acceleration);
   void AddImuAngularVelocityObservation(common::Time time, const Eigen::Vector3d& imu_angular_velocity);
 
-  Distribution GetBelief(double time);
+  void GetPoseEstimateMeanAndCovariance(common::Time time, transform::Rigid3d* pose, PoseCovariance* covariance);
+
+  Distribution GetBelief(common::Time time);
 
 
 
